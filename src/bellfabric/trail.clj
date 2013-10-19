@@ -7,7 +7,8 @@
   [state]
   (merge 
    state
-   {:fullscreen false}))
+   {:fullscreen false
+    :players {}}))
 
 (defn find-largest-display-mode
   "run through all of the system display modes and find the one with the greatest area"
@@ -39,7 +40,7 @@
 (defn reshape [[x y width height] state]
   (frustum-view 50 (/ (double width) height) 0.1 100)
   (load-identity)
-  (translate 0 0 -3)
+  (translate 0 0 -4)
   (light 0
     :position [1 1 1 0])
   (fog
@@ -62,39 +63,80 @@
 
 (defn normalize-joint
   [[x y z]]
-  [(* x 0.0015625) (* y 0.003125) (* z 0.0004)])
+  [(* x 0.001) (* y 0.002) (* z 0.0004)])
+
+(defn make-bounds
+  []
+  {:left 100000.0
+   :right -100000.0
+   :bottom 100000.0
+   :top -100000.0
+   :front 100000.0
+   :back -100000.0})
+
+(def watched-limb?
+  #{:right-hand :left-hand :right-foot :left-foot})
+
+(defn shape-bounds
+  [bounds limb [x y z]]
+  (if (watched-limb? limb)
+    (-> bounds
+        (update-in [:left] #(Math/min % x))
+        (update-in [:right] #(Math/max % x))
+        (update-in [:bottom] #(Math/min % y))
+        (update-in [:top] #(Math/max % y))
+        (update-in [:front] #(Math/min % z))
+        (update-in [:back] #(Math/max % z)))
+    bounds))
 
 (defn normalize-skeleton
   [skeleton]
-  (into 
-   {}
-   (for [[joint location] (seq skeleton)]
-     [joint (normalize-joint location)])))
+  (reduce 
+   (fn [[skeleton extremes] [limb point]]
+     (let [normal (normalize-joint point)]
+       [(assoc skeleton limb normal)
+        (shape-bounds extremes limb normal)]))
+   [{} (make-bounds)] (seq skeleton)))
+
+  ;; (into 
+  ;;  {}
+  ;;  (for [[joint location] (seq skeleton)]
+  ;;    [joint (normalize-joint location)])))
 
 (defn update
   [[dt t] state]
   (bifocals/tick)
-  (let [skeletons (map 
-                   (fn [[user skeleton]]
-                     (normalize-skeleton skeleton)) 
-                   @bifocals/skeletons)]
+  (let [skeletons (into
+                   {}
+                   (for [[id skeleton] (seq @bifocals/skeletons)]
+                     (let [[normal extremes] (normalize-skeleton skeleton)]
+                       [id {:skeleton normal :extremes extremes}])))]
     (assoc state 
       :test (* 0.5 (+ 1 (Math/sin (* t 1))))
       :skeletons skeletons)))
 
+
+
+(defn draw-skeleton
+  [{:keys [skeleton extremes]}]
+  (let [top (:top extremes)]
+    ;; (println top)
+    (material
+     :front-and-back
+     :ambient-and-diffuse [(- 1.0 (* 0.4 (+ 1.0 top)))
+                           (+ 1.0 (* -1 (- top 0.2) (- top 0.2)))
+                           (* (+ top 1.0) 0.4) 1.0])
+    (draw-polygon
+     (apply vertex (:right-hand skeleton))
+     (apply vertex (:left-hand skeleton))
+     (apply vertex (:left-foot skeleton))
+     (apply vertex (:right-foot skeleton)))))
+
 (defn display
   [[dt t] state]
   (if (> (count (:skeletons state)) 0)
-    (do 
-      (material 
-       :front-and-back
-       :ambient-and-diffuse 
-       [1.0 (:test state) 0.25 1])
-      (draw-polygon
-       (apply vertex (-> state :skeletons first :right-hand))
-       (apply vertex (-> state :skeletons first :left-hand))
-       (vertex -0.5 -1.5 1)
-       (vertex 0.5 -1.5 1)))
+    (doseq [[id skeleton] (seq (:skeletons state))]
+      (draw-skeleton skeleton))
     (do 
       (material 
        :front-and-back
