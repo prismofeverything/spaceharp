@@ -1,7 +1,6 @@
 (ns bellfabric.core
   (:use quil.core)
-  (:require [bifocals.core :as bifocals]
-            [overtone.core :as overtone]))
+  (:require [bifocals.core :as bifocals]))
 
 (defn setup
   []
@@ -11,12 +10,14 @@
 (defn draw []
   (background 0)
   (bifocals/tick)
-  (stroke 100)
+  (image (bifocals/depth-image) 0 0)
+  (fill 200 50 100)
   (doseq [skeleton (vals @bifocals/skeletons)]
-    (let [right (:right-hand skeleton)
-          left (:left-hand skeleton)]
-      (ellipse (:x right) (:y right) 10 10)
-      (ellipse (:x left) (:y left) 10 10))))
+    (let [projection (bifocals/project-skeleton skeleton)
+          [rightx righty rightz] (:right-hand projection)
+          [leftx lefty leftz] (:left-hand projection)]
+      (ellipse rightx righty 20 20)
+      (ellipse leftx lefty 20 20))))
 
 (defsketch kinect
   :title "BELLFABRIC"
