@@ -1,11 +1,11 @@
-# bellfabric
+# spaceharp
 
 Interactive musical instrument
 
 ## Usage
 
     > lein repl
-    > (use 'bellfabric.core)  
+    > (use 'spaceharp.core)  
 
 ## License
 
