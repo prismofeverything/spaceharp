@@ -1,4 +1,4 @@
-(ns bellfabric.trail
+(ns spaceharp.trail
   (:use [penumbra opengl])
   (:require [bifocals.core :as bifocals]
             [penumbra.app :as app]))
@@ -26,7 +26,7 @@
 
 (defn init
   [state]
-  (app/title! "BELL fabric")
+  (app/title! "SPACE harp")
   (app/vsync! true)
   ;; (set-largest-display-mode)
   (enable :depth-test)
@@ -98,11 +98,6 @@
         (shape-bounds extremes limb normal)]))
    [{} (make-bounds)] (seq skeleton)))
 
-  ;; (into 
-  ;;  {}
-  ;;  (for [[joint location] (seq skeleton)]
-  ;;    [joint (normalize-joint location)])))
-
 (defn update
   [[dt t] state]
   (bifocals/tick)
@@ -114,8 +109,6 @@
     (assoc state 
       :test (* 0.5 (+ 1 (Math/sin (* t 1))))
       :skeletons skeletons)))
-
-
 
 (defn draw-skeleton
   [{:keys [skeleton extremes]}]
