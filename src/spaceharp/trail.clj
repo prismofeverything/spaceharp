@@ -1,6 +1,8 @@
 (ns spaceharp.trail
   (:use [penumbra opengl])
   (:require [bifocals.core :as bifocals]
+            [tonality.tonality :as tonality]
+            [tonality.sound :as sound]
             [penumbra.app :as app]))
 
 (defn reset
@@ -8,6 +10,8 @@
   (merge 
    state
    {:fullscreen false
+    :tonality (tonality/tonality tonality/pure-diatonic 100.0 0)
+    :playing false
     :players {}}))
 
 (defn find-largest-display-mode
@@ -55,7 +59,7 @@
 
 (defn key-press [key state]
   (cond
-   (= key " ") (reset state)
+   (= key " ") (update-in state [:playing] not)
    (= key :escape) (do 
                      (app/fullscreen! (not (state :fullscreen)))
                      (update-in state [:fullscreen] not))
@@ -98,6 +102,31 @@
         (shape-bounds extremes limb normal)]))
    [{} (make-bounds)] (seq skeleton)))
 
+(defn track-trails
+  [trails skeleton limit]
+  (reduce
+   (fn [trails limb]
+     (update-in trails [limb] #(take limit (conj % (get skeleton limb)))))
+   trails watched-limb?))
+
+(defn bin-interval
+  [bottom interval index value]
+  (int (Math/floor (/ (- (nth value index) bottom) interval))))
+
+(defn trail-trigger?
+  [trail bottom interval index threshhold]
+  (if (> (count trail) threshhold)
+    (let [binned (map (partial bin-interval bottom interval index) trail)
+          batch (take threshhold binned)
+          prototype (first batch)
+          previous (nth binned threshhold)]
+      (when (and (every? #(= % prototype) batch) (not= prototype previous))
+        prototype))))
+
+(defn play-harp
+  [tonality tone amp]
+  (sound/pretty-bell (tonality tone) 4.0 amp))
+
 (defn update
   [[dt t] state]
   (bifocals/tick)
@@ -105,8 +134,19 @@
                    {}
                    (for [[id skeleton] (seq @bifocals/skeletons)]
                      (let [[normal extremes] (normalize-skeleton skeleton)]
-                       [id {:skeleton normal :extremes extremes}])))]
-    (assoc state 
+                       [id {:skeleton normal :extremes extremes}])))
+        state (reduce 
+               (fn [state id]
+                 (update-in state [:trails id] track-trails (get-in skeletons [id :skeleton]) 10))
+               state (keys skeletons))]
+    (doseq [[id skeleton] (seq skeletons)]
+      (doseq [[limb trail] (seq (select-keys (get-in state [:trails id]) [:right-hand :left-hand]))]
+        ;; (println limb trail)
+        (if-let [tone (trail-trigger? trail -1.5 0.1 1 7)]
+          (do
+            (println "TRIGGER" limb tone)
+            (play-harp (:tonality state) tone 0.5)))))
+    (assoc state
       :test (* 0.5 (+ 1 (Math/sin (* t 1))))
       :skeletons skeletons)))
 
