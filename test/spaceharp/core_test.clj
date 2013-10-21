@@ -1,6 +1,6 @@
-(ns bellfabric.core-test
+(ns spaceharp.core-test
   (:use clojure.test
-        bellfabric.core))
+        spaceharp.core))
 
 (deftest a-test
   (testing "FIXME, I fail."

@@ -1,4 +1,4 @@
-(ns bellfabric.core
+(ns spaceharp.core
   (:use quil.core)
   (:require [bifocals.core :as bifocals]))
 
@@ -20,7 +20,7 @@
       (ellipse leftx lefty 20 20))))
 
 (defsketch kinect
-  :title "BELLFABRIC"
+  :title "SPACEHARP"
   :setup setup
   :draw draw
   :size [640 480])
